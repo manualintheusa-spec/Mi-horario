@@ -88,18 +88,19 @@ object Horario {
         return Resultado(semana, errores)
     }
 
-    fun fmt(m0: Int): String {
+    fun fmt(m0: Int, h24: Boolean = false): String {
         val m = ((m0 % 1440) + 1440) % 1440
         var h = m / 60
         val mi = m % 60
+        if (h24) return "$h:${mi.toString().padStart(2, '0')}"
         val ap = if (h >= 12) "pm" else "am"
         h = if (h % 12 == 0) 12 else h % 12
         return "$h:${mi.toString().padStart(2, '0')} $ap"
     }
 
-    fun corta(m0: Int): String {
+    fun corta(m0: Int, h24: Boolean = false): String {
         val m = ((m0 % 1440) + 1440) % 1440
-        val h = if ((m / 60) % 12 == 0) 12 else (m / 60) % 12
+        val h = if (h24) m / 60 else if ((m / 60) % 12 == 0) 12 else (m / 60) % 12
         val mi = m % 60
         return if (mi != 0) "$h:${mi.toString().padStart(2, '0')}" else "$h"
     }
@@ -131,6 +132,5 @@ object Datos {
     fun prefs(ctx: Context) = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
     fun texto(ctx: Context): String = prefs(ctx).getString("texto", null) ?: Horario.EJEMPLO
     fun esEjemplo(ctx: Context): Boolean = prefs(ctx).getString("texto", null) == null
-    fun oscuro(ctx: Context): Boolean = prefs(ctx).getBoolean("oscuro", false)
     fun semana(ctx: Context): List<Dia> = Horario.parse(texto(ctx)).semana
 }

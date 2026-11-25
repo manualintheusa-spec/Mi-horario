@@ -50,7 +50,8 @@ class MiTurnoWidget : AppWidgetProvider() {
             val semana = Datos.semana(ctx)
             val ahora = Calendar.getInstance()
             val dm = ctx.resources.displayMetrics
-            val dibujo = Dibujo(dm.density, Datos.oscuro(ctx))
+            val aj = Ajustes.cargar(ctx)
+            val oscuro = aj.letrasOscuras(ctx)
             val abrir = PendingIntent.getActivity(
                 ctx, 0, Intent(ctx, MainActivity::class.java),
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
@@ -63,16 +64,15 @@ class MiTurnoWidget : AppWidgetProvider() {
                 if (hDp <= 0) hDp = 260
                 // Limita el tamaño de la imagen para no gastar memoria
                 val escala = min(1f, 1300f / (maxOf(wDp, hDp) * dm.density))
-                val dibujoEscalado = if (escala < 1f) Dibujo(dm.density * escala, Datos.oscuro(ctx)) else dibujo
                 val w = (wDp * dm.density * escala).toInt()
                 val h = (hDp * dm.density * escala).toInt()
-                val bmp = dibujoEscalado.dibujar(semana, w, h, ahora, Datos.esEjemplo(ctx))
+                val bmp = Dibujo(dm.density * escala, aj, oscuro).dibujar(semana, w, h, ahora, Datos.esEjemplo(ctx))
                 val rv = RemoteViews(ctx.packageName, R.layout.widget)
                 rv.setImageViewBitmap(R.id.img, bmp)
                 rv.setOnClickPendingIntent(R.id.img, abrir)
                 mgr.updateAppWidget(id, rv)
             }
-            programar(ctx, semana, ahora)
+            programar(ctx, semana, ahora, aj.antes)
         }
 
         /**
@@ -80,15 +80,15 @@ class MiTurnoWidget : AppWidgetProvider() {
          * Cada minuto solo desde 2 h antes de tu entrada hasta tu salida; si no, cada 30 min.
          * Usa una alarma que NO despierta el celular: con la pantalla apagada no hace nada.
          */
-        private fun programar(ctx: Context, semana: List<Dia>, ahora: Calendar) {
+        private fun programar(ctx: Context, semana: List<Dia>, ahora: Calendar, antes: Int) {
             val am = ctx.getSystemService(AlarmManager::class.java) ?: return
             val nm = ahora.get(Calendar.HOUR_OF_DAY) * 60 + ahora.get(Calendar.MINUTE)
             val base = ahora.timeInMillis - ahora.get(Calendar.SECOND) * 1000L - ahora.get(Calendar.MILLISECOND)
             val yo = semana[ahora.get(Calendar.DAY_OF_WEEK) - 1].yo
 
             var minutos = 30
-            if (yo != null && nm >= yo.s - 120 && nm < yo.e) minutos = 1
-            else if (yo != null && nm < yo.s - 120) minutos = min(minutos, yo.s - 120 - nm)
+            if (yo != null && nm >= yo.s - antes && nm < yo.e) minutos = 1
+            else if (yo != null && nm < yo.s - antes) minutos = min(minutos, yo.s - antes - nm)
             minutos = min(minutos, 1440 - nm) // cambio de día
             if (minutos < 1) minutos = 1
             val cuando = base + minutos * 60_000L + 500L
